@@ -1,6 +1,8 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from database import engine, Base
 from routes import (
@@ -26,9 +28,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_default_origins = ["http://localhost:8082"]
+_cors_env = os.getenv("CORS_ORIGINS", "").strip()
+_cors = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else _default_origins
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8082"],  # your frontend URL, not wildcard "*"
+    allow_origins=_cors,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
