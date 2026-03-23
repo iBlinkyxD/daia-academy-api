@@ -1,6 +1,8 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from database import engine, Base
 from routes import (
@@ -24,6 +26,14 @@ app = FastAPI(
     description="API for DAIA Academy — courses, spaces, events, and community features.",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+_default_origins = ["http://localhost:8082"]
+_cors_env = os.getenv("CORS_ORIGINS", "").strip()
+_cors = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else _default_origins
 )
 
 app.add_middleware(

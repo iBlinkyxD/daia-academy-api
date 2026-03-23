@@ -1,6 +1,6 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
 
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # App
     APP_ENV: str = "development"
     DEBUG: bool = True
+    SQL_ECHO: bool = False
 
     class Config:
         env_file = ".env"
