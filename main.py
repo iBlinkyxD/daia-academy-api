@@ -28,7 +28,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8082"],  # your frontend URL, not wildcard "*"
+    allow_origins=["http://localhost:8082","https://daia-academy-app.netlify.app"],  # your frontend URL, not wildcard "*"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
