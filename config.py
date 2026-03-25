@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/daia_academy"
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Railway provides postgresql:// but asyncpg requires postgresql+asyncpg://
+        if self.DATABASE_URL.startswith("postgresql://"):
+            object.__setattr__(self, "DATABASE_URL", self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1))
+
     # JWT (shared secret with DAIA main API)
     JWT_SECRET_KEY: str = "your-shared-secret-key"
     JWT_ALGORITHM: str = "HS256"
