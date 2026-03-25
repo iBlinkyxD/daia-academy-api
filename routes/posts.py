@@ -21,6 +21,29 @@ async def _resolve_user(daia_user_id: UUID, db: AsyncSession) -> User:
     return user
 
 
+def _enrich(post: Post, user: User) -> PostRead:
+    data = PostRead.model_validate(post)
+    data.author_daia_user_id = user.daia_user_id
+    return data
+
+
+@router.get("/", response_model=list[PostRead])
+async def list_posts(
+    limit: int = 20,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Post).order_by(Post.created_at.desc()).offset(offset).limit(limit)
+    )
+    posts = result.scalars().all()
+    # Bulk-load authors
+    author_ids = list({p.author_id for p in posts})
+    users_result = await db.execute(select(User).where(User.id.in_(author_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+    return [_enrich(p, users_map[p.author_id]) for p in posts if p.author_id in users_map]
+
+
 @router.post("/", response_model=PostRead, status_code=201)
 async def create_post(
     payload: PostCreate,
@@ -32,7 +55,7 @@ async def create_post(
     db.add(post)
     await db.flush()
     await db.refresh(post)
-    return post
+    return _enrich(post, user)
 
 
 @router.get("/{post_id}", response_model=PostRead)

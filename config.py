@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     DAIA_API_BASE_URL: str = "https://api.daia.com"
     DAIA_INTERNAL_TOKEN: str = "internal-service-token"
 
-    INTERNAL_SECRET: str         
+    INTERNAL_SECRET: str = ""
 
     # App
     APP_ENV: str = "development"

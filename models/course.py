@@ -31,6 +31,7 @@ class Course(Base):
     short_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     instructor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String(500))
+    badge_url: Mapped[str | None] = mapped_column(String(100), nullable=True)
     level: Mapped[CourseLevel] = mapped_column(Enum(CourseLevel), default=CourseLevel.beginner)
     instructor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

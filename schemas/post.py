@@ -14,6 +14,7 @@ class PostCreate(BaseModel):
 class PostRead(BaseModel):
     id: UUID
     author_id: UUID
+    author_daia_user_id: UUID | None = None
     space_id: UUID | None
     title: str | None
     content: str

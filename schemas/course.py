@@ -24,6 +24,7 @@ class CourseRead(BaseModel):
     code: str | None
     description: str | None
     thumbnail_url: str | None
+    badge_url: str | None = None
     level: CourseLevel
     instructor_id: UUID | None
     instructor_name: str | None
