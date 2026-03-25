@@ -1,2 +1,2 @@
 [deploy]
-startCommand = "python migrate.py && python main.py"
+startCommand = "python main.py"
