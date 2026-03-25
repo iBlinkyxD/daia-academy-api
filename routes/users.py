@@ -24,7 +24,7 @@ async def register_user(
 ):
     # Prevent duplicate registrations
     result = await db.execute(
-        select(User).where(User.daia_user_id == data.daia_user_id)
+        select(User).where(User.id == data.daia_user_id)
     )
     existing = result.scalar_one_or_none()
     if existing:

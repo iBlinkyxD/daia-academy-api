@@ -28,6 +28,8 @@ class Course(Base):
     slug: Mapped[str] = mapped_column(String(300), unique=True, nullable=False)
     code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     description: Mapped[str | None] = mapped_column(Text)
+    short_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    instructor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String(500))
     level: Mapped[CourseLevel] = mapped_column(Enum(CourseLevel), default=CourseLevel.beginner)
     instructor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -49,6 +51,9 @@ class Course(Base):
         back_populates="course", cascade="all, delete-orphan"
     )
     progress_records: Mapped[list["CourseProgress"]] = relationship(
+        back_populates="course", cascade="all, delete-orphan"
+    )
+    ratings: Mapped[list["CourseRating"]] = relationship(
         back_populates="course", cascade="all, delete-orphan"
     )
 

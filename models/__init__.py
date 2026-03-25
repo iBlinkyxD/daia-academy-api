@@ -9,6 +9,7 @@ from .event import Event, EventAttendee
 from .chat import Chat, ChatParticipant, Message
 from .notification import Notification
 from .badge import Badge
+from .rating import CourseRating
 
 __all__ = [
     "User", "UserInterest", "UserBadge",
@@ -22,4 +23,5 @@ __all__ = [
     "Chat", "ChatParticipant", "Message",
     "Notification",
     "Badge",
+    "CourseRating",
 ]

@@ -1,8 +1,10 @@
 import os
+import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from database import engine, Base
 from routes import (
@@ -57,6 +59,15 @@ app.include_router(events.router,       prefix="/events",        tags=["Events"]
 app.include_router(chats.router,        prefix="/chats",         tags=["Chats"])
 app.include_router(notifications.router,prefix="/notifications", tags=["Notifications"])
 app.include_router(badges.router,       prefix="/badges",        tags=["Badges"])
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"},
+    )
 
 
 @app.get("/", tags=["Health"])

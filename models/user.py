@@ -41,6 +41,7 @@ class User(Base):
     chat_memberships: Mapped[list["ChatParticipant"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     messages: Mapped[list["Message"]] = relationship(back_populates="sender", cascade="all, delete-orphan")
     notifications: Mapped[list["Notification"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    ratings: Mapped[list["CourseRating"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class UserInterest(Base):
