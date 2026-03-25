@@ -11,6 +11,8 @@ from models.module import Module
 from schemas.lesson import LessonCreate, LessonRead, LessonProgressUpdate, LessonProgressRead
 from utils.auth import get_current_user_id
 from utils.progress import recalculate_course_progress
+from routes.activities import log_activity
+from models.activity import ActivityType
 
 router = APIRouter()
 
@@ -77,6 +79,15 @@ async def update_lesson_progress(
         module = await db.get(Module, lesson.module_id)
         if module:
             await recalculate_course_progress(db, user.id, module.course_id)
+
+    if payload.completed and not (lp.completed_at and lp.completed):
+        await log_activity(
+            db, user.id,
+            type=ActivityType.lesson_completed,
+            title=f'Completed lesson: "{lesson.title}"' if lesson else "Completed a lesson",
+            xp_earned=10,
+            metadata={"lesson_id": str(lesson_id)},
+        )
 
     await db.refresh(lp)
     return lp

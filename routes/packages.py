@@ -11,6 +11,8 @@ from models.user import User
 from models.module import Module
 from models.lesson import Lesson
 from utils.auth import get_current_user_id
+from routes.activities import log_activity
+from models.activity import ActivityType
 from models.rating import CourseRating
 
 router = APIRouter()
@@ -194,6 +196,14 @@ async def enroll_package(
     ]
     db.add_all(new_enrollments)
     await db.flush()
+
+    if new_enrollments:
+        await log_activity(
+            db, user.id,
+            type=ActivityType.package_enrolled,
+            title=f'Enrolled in package "{pkg.title}"',
+            metadata={"package_slug": slug},
+        )
 
     return {"enrolled": len(new_enrollments), "already_enrolled": len(already_enrolled)}
 

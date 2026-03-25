@@ -10,6 +10,24 @@ import jwt
 from config import settings
 
 
+def get_optional_user_id(
+    access_token: str = Cookie(None),
+) -> UUID | None:
+    """Same as get_current_user_id but returns None instead of raising."""
+    if not access_token:
+        return None
+    try:
+        payload = jwt.decode(
+            access_token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        user_id = payload.get("sub")
+        return UUID(str(user_id)) if user_id else None
+    except Exception:
+        return None
+
+
 def get_current_user_id(
     access_token: str = Cookie(None),
 ) -> UUID:

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
 
     INTERNAL_SECRET: str = ""
 
+    # Supabase Storage
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    SUPABASE_POSTS_BUCKET: str = "posts"
+
     # App
     APP_ENV: str = "development"
     DEBUG: bool = True

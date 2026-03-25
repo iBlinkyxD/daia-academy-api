@@ -12,6 +12,8 @@ from models.lesson import Lesson
 from models.rating import CourseRating
 from schemas.course import CourseCreate, CourseRead, UserCourseRead, CourseProgressRead, LessonRead, ModuleRead, CourseDetailRead, RatingSubmit
 from utils.auth import get_current_user_id
+from routes.activities import log_activity
+from models.activity import ActivityType
 
 router = APIRouter()
 
@@ -178,6 +180,14 @@ async def enroll(
     enrollment = UserCourse(user_id=user.id, course_id=course_id)
     db.add(enrollment)
     await db.flush()
+    course_result = await db.execute(select(Course).where(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    await log_activity(
+        db, user.id,
+        type=ActivityType.course_enrolled,
+        title=f'Enrolled in "{course.title}"' if course else "Enrolled in a course",
+        metadata={"course_id": str(course_id)},
+    )
     await db.refresh(enrollment)
     return enrollment
 

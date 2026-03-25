@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from database import engine, Base
 from routes import (
     users, spaces, posts, comments, courses,
-    modules, lessons, events, chats, notifications, badges, packages
+    modules, lessons, events, chats, notifications, badges, packages, activities
 )
 
 
@@ -59,6 +59,7 @@ app.include_router(events.router,       prefix="/events",        tags=["Events"]
 app.include_router(chats.router,        prefix="/chats",         tags=["Chats"])
 app.include_router(notifications.router,prefix="/notifications", tags=["Notifications"])
 app.include_router(badges.router,       prefix="/badges",        tags=["Badges"])
+app.include_router(activities.router,   prefix="/activities",    tags=["Activities"])
 
 
 @app.exception_handler(Exception)

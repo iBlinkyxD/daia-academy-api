@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -8,7 +8,10 @@ from models.user import User
 from models.post import Post, PostLike
 from models.comment import Comment
 from schemas.post import PostCreate, PostRead, PostUpdate
-from utils.auth import get_current_user_id
+from utils.auth import get_current_user_id, get_optional_user_id
+from routes.activities import log_activity
+from models.activity import ActivityType
+from services.storage import upload_post_file
 
 router = APIRouter()
 
@@ -21,9 +24,18 @@ async def _resolve_user(daia_user_id: UUID, db: AsyncSession) -> User:
     return user
 
 
-def _enrich(post: Post, user: User) -> PostRead:
+def _enrich(
+    post: Post,
+    user: User,
+    likes_count: int = 0,
+    comments_count: int = 0,
+    liked_by_me: bool = False,
+) -> PostRead:
     data = PostRead.model_validate(post)
     data.author_daia_user_id = user.daia_user_id
+    data.likes_count = likes_count
+    data.comments_count = comments_count
+    data.liked_by_me = liked_by_me
     return data
 
 
@@ -32,16 +44,88 @@ async def list_posts(
     limit: int = 20,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    viewer_daia_id: UUID | None = Depends(get_optional_user_id),
 ):
-    result = await db.execute(
-        select(Post).order_by(Post.created_at.desc()).offset(offset).limit(limit)
+    likes_sq = (
+        select(func.count(PostLike.id))
+        .where(PostLike.post_id == Post.id)
+        .correlate(Post)
+        .scalar_subquery()
     )
-    posts = result.scalars().all()
-    # Bulk-load authors
-    author_ids = list({p.author_id for p in posts})
+    comments_sq = (
+        select(func.count(Comment.id))
+        .where(Comment.post_id == Post.id)
+        .correlate(Post)
+        .scalar_subquery()
+    )
+
+    result = await db.execute(
+        select(Post, likes_sq.label("likes_count"), comments_sq.label("comments_count"))
+        .order_by(Post.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = result.all()
+
+    author_ids = list({r.Post.author_id for r in rows})
     users_result = await db.execute(select(User).where(User.id.in_(author_ids)))
     users_map = {u.id: u for u in users_result.scalars().all()}
-    return [_enrich(p, users_map[p.author_id]) for p in posts if p.author_id in users_map]
+
+    liked_post_ids: set = set()
+    if viewer_daia_id:
+        viewer_res = await db.execute(select(User).where(User.daia_user_id == viewer_daia_id))
+        viewer = viewer_res.scalar_one_or_none()
+        if viewer:
+            likes_res = await db.execute(
+                select(PostLike.post_id).where(PostLike.user_id == viewer.id)
+            )
+            liked_post_ids = {r[0] for r in likes_res.all()}
+
+    posts = []
+    for row in rows:
+        post = row.Post
+        if post.author_id not in users_map:
+            continue
+        posts.append(_enrich(
+            post,
+            users_map[post.author_id],
+            likes_count=row.likes_count or 0,
+            comments_count=row.comments_count or 0,
+            liked_by_me=post.id in liked_post_ids,
+        ))
+    return posts
+
+
+@router.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    daia_user_id: UUID = Depends(get_current_user_id),
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    file_bytes = await file.read()
+    url = await upload_post_file(
+        file_bytes,
+        filename=file.filename or "upload",
+        content_type=file.content_type,
+        user_id=str(daia_user_id),
+    )
+    return {"url": url}
+
+
+@router.post("/upload-file")
+async def upload_file(
+    file: UploadFile = File(...),
+    daia_user_id: UUID = Depends(get_current_user_id),
+):
+    file_bytes = await file.read()
+    url = await upload_post_file(
+        file_bytes,
+        filename=file.filename or "file",
+        content_type=file.content_type or "application/octet-stream",
+        user_id=str(daia_user_id),
+    )
+    return {"url": url, "name": file.filename}
 
 
 @router.post("/", response_model=PostRead, status_code=201)
@@ -55,6 +139,13 @@ async def create_post(
     db.add(post)
     await db.flush()
     await db.refresh(post)
+    await log_activity(
+        db, user.id,
+        type=ActivityType.post_created,
+        title="Created a post",
+        description=post.content[:120] if post.content else None,
+        metadata={"post_id": str(post.id)},
+    )
     return _enrich(post, user)
 
 
@@ -102,6 +193,12 @@ async def like_post(
 ):
     user = await _resolve_user(daia_user_id, db)
     db.add(PostLike(user_id=user.id, post_id=post_id))
+    await log_activity(
+        db, user.id,
+        type=ActivityType.post_liked,
+        title="Liked a post",
+        metadata={"post_id": str(post_id)},
+    )
     return {"liked": True}
 
 

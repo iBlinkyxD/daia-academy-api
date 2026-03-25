@@ -12,6 +12,7 @@ class CommentRead(BaseModel):
     id: UUID
     post_id: UUID
     author_id: UUID
+    author_daia_user_id: UUID | None = None
     parent_id: UUID | None
     content: str
     created_at: datetime

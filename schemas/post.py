@@ -22,6 +22,9 @@ class PostRead(BaseModel):
     visibility: PostVisibility
     created_at: datetime
     updated_at: datetime | None
+    likes_count: int = 0
+    comments_count: int = 0
+    liked_by_me: bool = False
     model_config = {"from_attributes": True}
 
 class PostUpdate(BaseModel):
