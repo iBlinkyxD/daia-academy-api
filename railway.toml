@@ -1,2 +1,2 @@
 [deploy]
-startCommand = "alembic upgrade head && python main.py"
+startCommand = "python migrate.py && python main.py"
