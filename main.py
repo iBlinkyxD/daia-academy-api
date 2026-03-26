@@ -40,7 +40,14 @@ _cors = (
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8082","https://daia-academy-app.netlify.app"],  # your frontend URL, not wildcard "*"
+    allow_origins=[
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:8082",
+        "https://dev-landing.daia.do",
+        "https://dev-hub.daia.do",
+        "https://dev-academy.daia.do",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
