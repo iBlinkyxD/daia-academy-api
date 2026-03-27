@@ -91,19 +91,30 @@ async def get_enrolled_packages(
 
     enrolled_course_ids_sq = select(UserCourse.course_id).where(UserCourse.user_id == user.id)
 
+    # Count how many courses in the package the user is enrolled in
+    enrolled_count_sq = (
+        select(func.count(PackageCourse.id))
+        .where(
+            PackageCourse.package_id == Package.id,
+            PackageCourse.course_id.in_(enrolled_course_ids_sq),
+        )
+        .correlate(Package)
+        .scalar_subquery()
+    )
+
+    # Count total courses in the package
+    total_count_sq = (
+        select(func.count(PackageCourse.id))
+        .where(PackageCourse.package_id == Package.id)
+        .correlate(Package)
+        .scalar_subquery()
+    )
+
     result = await db.execute(
         select(Package).options(
             selectinload(Package.course_links).selectinload(PackageCourse.course)
         )
-        .where(
-            exists(
-                select(PackageCourse.id)
-                .where(
-                    PackageCourse.package_id == Package.id,
-                    PackageCourse.course_id.in_(enrolled_course_ids_sq),
-                )
-            )
-        )
+        .where(enrolled_count_sq == total_count_sq, total_count_sq > 0)
         .order_by(Package.level)
     )
     packages = result.scalars().all()
