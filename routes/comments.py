@@ -5,7 +5,9 @@ from sqlalchemy import select
 
 from database import get_db
 from models.user import User
+from models.post import Post
 from models.comment import Comment
+from models.notification import Notification, NotificationType
 from schemas.comment import CommentCreate, CommentRead
 from utils.auth import get_current_user_id
 from routes.activities import log_activity
@@ -35,6 +37,18 @@ async def create_comment(
         description=comment.content[:120] if comment.content else None,
         metadata={"post_id": str(payload.post_id), "comment_id": str(comment.id)},
     )
+    post_result = await db.execute(select(Post).where(Post.id == payload.post_id))
+    post = post_result.scalar_one_or_none()
+    if post and post.author_id != user.id:
+        commenter_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "Someone"
+        db.add(Notification(
+            user_id=post.author_id,
+            type=NotificationType.comment,
+            title=f"{commenter_name} commented on your post",
+            body=comment.content[:100] if comment.content else None,
+            resource_id=payload.post_id,
+            resource_type="post",
+        ))
     return CommentRead(
         id=comment.id,
         post_id=comment.post_id,

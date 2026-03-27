@@ -7,6 +7,7 @@ from database import get_db
 from models.user import User
 from models.post import Post, PostLike
 from models.comment import Comment
+from models.notification import Notification, NotificationType
 from schemas.post import PostCreate, PostRead, PostUpdate
 from utils.auth import get_current_user_id, get_optional_user_id
 from routes.activities import log_activity
@@ -201,6 +202,17 @@ async def like_post(
         title="Liked a post",
         metadata={"post_id": str(post_id)},
     )
+    post_result = await db.execute(select(Post).where(Post.id == post_id))
+    post = post_result.scalar_one_or_none()
+    if post and post.author_id != user.id:
+        liker_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "Someone"
+        db.add(Notification(
+            user_id=post.author_id,
+            type=NotificationType.post_like,
+            title=f"{liker_name} liked your post",
+            resource_id=post_id,
+            resource_type="post",
+        ))
     return {"liked": True}
 
 
