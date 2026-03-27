@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 class UserCreate(BaseModel):
     daia_user_id: UUID
+    first_name: str | None = None
+    last_name: str | None = None
+    profile_picture_url: str | None = None
 
 class UserRead(BaseModel):
     id: UUID
@@ -20,3 +23,9 @@ class UserInterestRead(BaseModel):
 
 class UserInterestCreate(BaseModel):
     interest: str
+
+class UserProfileSync(BaseModel):
+    daia_user_id: UUID
+    first_name: str | None = None
+    last_name: str | None = None
+    profile_picture_url: str | None = None

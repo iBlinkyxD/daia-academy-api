@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from database import get_db
 from models.user import User, UserInterest
-from schemas.user import UserCreate, UserRead, UserInterestCreate, UserInterestRead
+from schemas.user import UserCreate, UserRead, UserInterestCreate, UserInterestRead, UserProfileSync
 from utils.auth import get_current_user_id
 from config import settings
 
@@ -30,12 +30,37 @@ async def register_user(
     if existing:
         return {"message": "User already registered in Academy"}
 
-    user = User(daia_user_id=data.daia_user_id)
+    user = User(
+        daia_user_id=data.daia_user_id,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        profile_picture_url=data.profile_picture_url,
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
     return {"message": "User registered in Academy", "id": str(user.id)}
+
+
+@router.patch("/sync-profile", status_code=200)
+async def sync_profile(
+    data: UserProfileSync,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_internal_secret),
+):
+    result = await db.execute(select(User).where(User.daia_user_id == data.daia_user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in Academy")
+    if data.first_name is not None:
+        user.first_name = data.first_name
+    if data.last_name is not None:
+        user.last_name = data.last_name
+    if data.profile_picture_url is not None:
+        user.profile_picture_url = data.profile_picture_url
+    await db.commit()
+    return {"message": "Profile synced"}
 
 
 @router.get("/me", response_model=UserRead)

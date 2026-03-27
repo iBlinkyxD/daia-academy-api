@@ -33,6 +33,8 @@ def _enrich(
 ) -> PostRead:
     data = PostRead.model_validate(post)
     data.author_daia_user_id = user.daia_user_id
+    data.author_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or None
+    data.author_avatar = user.profile_picture_url
     data.likes_count = likes_count
     data.comments_count = comments_count
     data.liked_by_me = liked_by_me
