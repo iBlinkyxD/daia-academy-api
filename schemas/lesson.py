@@ -12,6 +12,8 @@ class LessonCreate(BaseModel):
     duration_seconds: int | None = None
     lesson_type: LessonType = LessonType.article
     position: int = 0
+    objectives: list | None = None
+    vocabulary: list | None = None
 
 class LessonRead(BaseModel):
     id: UUID

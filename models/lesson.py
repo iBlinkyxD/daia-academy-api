@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone
 from sqlalchemy import String, Text, ForeignKey, DateTime, Enum, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from database import Base
 
@@ -28,6 +28,8 @@ class Lesson(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     lesson_type: Mapped[LessonType] = mapped_column(Enum(LessonType), default=LessonType.article)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    objectives: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=None)
+    vocabulary: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

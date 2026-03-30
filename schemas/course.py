@@ -1,7 +1,9 @@
 from uuid import UUID
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel
 from models.course import CourseLevel, EnrollmentStatus
+from models.lesson import LessonType
 
 
 class RatingSubmit(BaseModel):
@@ -12,9 +14,14 @@ class CourseCreate(BaseModel):
     title: str
     slug: str
     description: str | None = None
+    short_description: str | None = None
     thumbnail_url: str | None = None
+    badge_url: str | None = None
     level: CourseLevel = CourseLevel.beginner
     instructor_id: UUID | None = None
+    instructor_name: str | None = None
+    code: str | None = None
+    is_published: bool = False
 
 
 class CourseRead(BaseModel):
@@ -57,8 +64,13 @@ class CourseProgressRead(BaseModel):
 class LessonRead(BaseModel):
     id: UUID
     title: str
-    duration_seconds: int | None
+    duration_seconds: int | None = None
     position: int
+    content: str | None = None
+    video_url: str | None = None
+    lesson_type: LessonType | None = None
+    objectives: list[Any] | None = None
+    vocabulary: list[Any] | None = None
     model_config = {"from_attributes": True}
 
 class ModuleRead(BaseModel):
@@ -68,6 +80,23 @@ class ModuleRead(BaseModel):
     position: int
     lessons: list[LessonRead] = []
     model_config = {"from_attributes": True}
+
+class AdminCourseRead(BaseModel):
+    id: UUID
+    title: str
+    slug: str
+    code: str | None
+    short_description: str | None
+    thumbnail_url: str | None
+    badge_url: str | None
+    is_published: bool
+    module_count: int = 0
+    total_lessons: int = 0
+    has_video: bool = False
+    enrollment_count: int = 0
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
 
 class CourseDetailRead(BaseModel):
     id: UUID

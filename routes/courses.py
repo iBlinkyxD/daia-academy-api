@@ -10,7 +10,7 @@ from models.course import Course, UserCourse, CourseProgress
 from models.module import Module
 from models.lesson import Lesson
 from models.rating import CourseRating
-from schemas.course import CourseCreate, CourseRead, UserCourseRead, CourseProgressRead, LessonRead, ModuleRead, CourseDetailRead, RatingSubmit
+from schemas.course import CourseCreate, CourseRead, UserCourseRead, CourseProgressRead, LessonRead, ModuleRead, CourseDetailRead, AdminCourseRead, RatingSubmit
 from utils.auth import get_current_user_id
 from routes.activities import log_activity
 from models.activity import ActivityType
@@ -80,6 +80,61 @@ async def list_courses(db: AsyncSession = Depends(get_db)):
     return courses
 
 
+@router.get("/admin/all", response_model=list[AdminCourseRead])
+async def admin_list_courses(
+    _: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    module_count_sq = (
+        select(func.count(Module.id))
+        .where(Module.course_id == Course.id)
+        .scalar_subquery()
+    )
+
+    lesson_count_sq = (
+        select(func.count(Lesson.id))
+        .join(Module, Module.id == Lesson.module_id)
+        .where(Module.course_id == Course.id)
+        .scalar_subquery()
+    )
+
+    has_video_sq = (
+        select(func.count(Lesson.id))
+        .join(Module, Module.id == Lesson.module_id)
+        .where(Module.course_id == Course.id, Lesson.video_url.isnot(None))
+        .scalar_subquery()
+    )
+
+    enrollment_count_sq = (
+        select(func.count(UserCourse.id))
+        .where(UserCourse.course_id == Course.id)
+        .scalar_subquery()
+    )
+
+    result = await db.execute(
+        select(
+            Course,
+            module_count_sq.label("module_count"),
+            lesson_count_sq.label("total_lessons"),
+            has_video_sq.label("video_count"),
+            enrollment_count_sq.label("enrollment_count"),
+        )
+        .order_by(Course.created_at.desc())
+    )
+
+    rows = result.all()
+    courses = []
+    for row in rows:
+        course = row.Course
+        course.module_count = row.module_count or 0
+        course.total_lessons = row.total_lessons or 0
+        course.has_video = (row.video_count or 0) > 0
+        course.enrollment_count = row.enrollment_count or 0
+        courses.append(course)
+
+    return courses
+
+
 @router.post("/", response_model=CourseRead, status_code=201)
 async def create_course(
     payload: CourseCreate,
@@ -90,7 +145,7 @@ async def create_course(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    course = Course(**payload.model_dump(), created_by=user.id)
+    course = Course(**payload.model_dump())
     db.add(course)
     await db.flush()
     await db.refresh(course)

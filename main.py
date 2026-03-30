@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url VARCHAR(500)"))
+        await conn.execute(text("ALTER TABLE lessons ADD COLUMN IF NOT EXISTS objectives JSONB"))
+        await conn.execute(text("ALTER TABLE lessons ADD COLUMN IF NOT EXISTS vocabulary JSONB"))
     yield
     # Shutdown
     await engine.dispose()
@@ -48,9 +50,11 @@ app.add_middleware(
         "http://localhost:8080",
         "http://localhost:8081",
         "http://localhost:8082",
+        "http://localhost:8083",
         "https://dev-landing.daia.do",
         "https://dev-hub.daia.do",
         "https://dev-academy.daia.do",
+        "https://dev-admin.daia.do",
     ],
     allow_credentials=True,
     allow_methods=["*"],
