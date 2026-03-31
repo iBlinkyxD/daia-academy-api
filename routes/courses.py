@@ -1,5 +1,7 @@
+import json
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -12,6 +14,7 @@ from models.lesson import Lesson
 from models.rating import CourseRating
 from schemas.course import CourseCreate, CourseRead, UserCourseRead, CourseProgressRead, LessonRead, ModuleRead, CourseDetailRead, AdminCourseRead, RatingSubmit
 from utils.auth import get_current_user_id
+from config import settings
 from routes.activities import log_activity
 from models.activity import ActivityType
 
@@ -266,6 +269,138 @@ async def get_progress(
     if not progress:
         raise HTTPException(status_code=404, detail="No progress yet")
     return progress
+
+# ── AI Course Generation ───────────────────────────────────────────────────────
+
+class CourseGenerateRequest(BaseModel):
+    description: str
+    level: str
+    language: str
+    duration: str
+    module_count: int
+    avg_lessons_per_module: int
+    avg_lesson_length: int
+    include_assessments: bool
+    include_projects: bool
+    course_code: str = ""
+    badge_name: str = ""
+
+
+class LessonOutline(BaseModel):
+    name: str
+    overview: str
+
+
+class ModuleOutline(BaseModel):
+    title: str
+    lessons: list[LessonOutline]
+
+
+class CourseGenerateResponse(BaseModel):
+    title: str
+    short_description: str
+    modules: list[ModuleOutline]
+    faq: str
+
+
+_AI_SYSTEM_PROMPT = """You are a curriculum architect for DAIA Academy, an AI education platform in the Dominican Republic targeting students ages 14 and up.
+
+Generate a structured course outline based on the provided description and configuration.
+
+TONE: Conversational, clear, and energetic — like a knowledgeable teacher who respects the student's intelligence. Use real-world examples relevant to the Dominican Republic and Latin America where natural.
+
+OUTPUT FORMAT:
+Return a single valid JSON object only. No markdown fences, no extra text.
+
+{
+  "title": "clear and specific course title",
+  "short_description": "2–3 sentence description of what students will learn and why it matters",
+  "modules": [
+    {
+      "title": "module title — forms a logical step in the learning journey",
+      "lessons": [
+        {
+          "name": "lesson name — specific and action-oriented",
+          "overview": "2–3 paragraph lesson overview in plain prose (no markdown headers). First paragraph introduces the topic, second covers key concepts, third explains practical application or takeaway."
+        }
+      ]
+    }
+  ],
+  "faq": "FAQ in markdown: start with ## Frequently Asked Questions, then 5–7 Q&A pairs using **Q:** and **A:** format separated by blank lines"
+}
+
+RULES:
+- Generate EXACTLY the number of modules and lessons per module specified — no more, no less
+- Module titles must form a clear logical progression from fundamentals to advanced topics
+- Lesson names must be specific (avoid generic names like "Introduction" or "Overview")
+- Each lesson overview must be 120–180 words
+- If assessments are requested, make the last lesson of each module a quiz/review lesson
+- If projects are requested, make the last lesson of the last module a capstone project
+- Do NOT include any text outside the JSON object"""
+
+
+@router.post("/ai-generate", response_model=CourseGenerateResponse)
+async def ai_generate_course(
+    payload: CourseGenerateRequest,
+    _: UUID = Depends(get_current_user_id),
+):
+    api_key = settings.ANTHROPIC_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+
+    try:
+        import anthropic
+    except ImportError:
+        raise HTTPException(status_code=500, detail="anthropic package not installed — run: pip install anthropic")
+
+    lang_note = {
+        "english": "Write all content in English.",
+        "spanish": "Write all content in Spanish.",
+        "bilingual": "Write content in English; include Spanish equivalents for key terms where helpful.",
+    }.get(payload.language, "Write all content in English.")
+
+    extras: list[str] = []
+    if payload.include_assessments:
+        extras.append("Make the last lesson of each module a quiz or knowledge-check review lesson.")
+    if payload.include_projects:
+        extras.append("Make the last lesson of the final module a hands-on capstone project lesson.")
+
+    user_message = f"""Generate a course outline with these exact specifications:
+
+Description: {payload.description}
+Level: {payload.level}
+Language: {payload.language} — {lang_note}
+Duration: {payload.duration}
+Number of modules: {payload.module_count} (generate EXACTLY this many)
+Lessons per module: {payload.avg_lessons_per_module} (generate EXACTLY this many in each module)
+Average lesson length: {payload.avg_lesson_length} minutes
+{chr(10).join(extras)}
+
+Return only the JSON object."""
+
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+    message = await client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=8000,
+        system=_AI_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_message}],
+    )
+
+    raw = message.content[0].text.strip()
+    # Strip markdown fences if the model wraps its output anyway
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail=f"AI returned invalid JSON: {exc}")
+
+    return data
+
 
 @router.get("/{slug}", response_model=CourseDetailRead)
 async def get_course(slug: str, db: AsyncSession = Depends(get_db)):

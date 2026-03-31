@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     SUPABASE_POSTS_BUCKET: str = "posts"
 
+    # AI
+    ANTHROPIC_API_KEY: str = ""
+
     # App
     APP_ENV: str = "development"
     DEBUG: bool = True
