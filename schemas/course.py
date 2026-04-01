@@ -15,6 +15,7 @@ class CourseCreate(BaseModel):
     slug: str
     description: str | None = None
     short_description: str | None = None
+    faq: str | None = None
     thumbnail_url: str | None = None
     badge_url: str | None = None
     level: CourseLevel = CourseLevel.beginner
@@ -67,6 +68,7 @@ class LessonRead(BaseModel):
     duration_seconds: int | None = None
     position: int
     content: str | None = None
+    narration_script: str | None = None
     video_url: str | None = None
     lesson_type: LessonType | None = None
     objectives: list[Any] | None = None
@@ -105,6 +107,7 @@ class CourseDetailRead(BaseModel):
     code: str | None
     description: str | None
     short_description: str | None
+    faq: str | None = None
     thumbnail_url: str | None
     level: CourseLevel
     instructor_id: UUID | None

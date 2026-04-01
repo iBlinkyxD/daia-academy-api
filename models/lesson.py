@@ -23,7 +23,8 @@ class Lesson(Base):
         ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
-    content: Mapped[str | None] = mapped_column(Text)       # Markdown / HTML body
+    content: Mapped[str | None] = mapped_column(Text)           # Markdown / HTML body
+    narration_script: Mapped[str | None] = mapped_column(Text)  # Spoken narration
     video_url: Mapped[str | None] = mapped_column(String(500))
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     lesson_type: Mapped[LessonType] = mapped_column(Enum(LessonType), default=LessonType.article)

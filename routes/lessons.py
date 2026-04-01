@@ -8,7 +8,7 @@ from database import get_db
 from models.user import User
 from models.lesson import Lesson, LessonProgress
 from models.module import Module
-from schemas.lesson import LessonCreate, LessonRead, LessonProgressUpdate, LessonProgressRead
+from schemas.lesson import LessonCreate, LessonUpdate, LessonRead, LessonProgressUpdate, LessonProgressRead
 from utils.auth import get_current_user_id
 from utils.progress import recalculate_course_progress
 from routes.activities import log_activity
@@ -33,6 +33,24 @@ async def create_lesson(
 ):
     lesson = Lesson(**payload.model_dump())
     db.add(lesson)
+    await db.flush()
+    await db.refresh(lesson)
+    return lesson
+
+
+@router.patch("/{lesson_id}", response_model=LessonRead)
+async def update_lesson(
+    lesson_id: UUID,
+    payload: LessonUpdate,
+    _: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    lesson = result.scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(lesson, field, value)
     await db.flush()
     await db.refresh(lesson)
     return lesson
