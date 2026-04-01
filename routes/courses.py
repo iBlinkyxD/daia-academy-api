@@ -1,7 +1,8 @@
 import asyncio
 import json
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from services.storage import upload_thumbnail
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -239,6 +240,30 @@ async def publish_course(
         raise HTTPException(status_code=404, detail="Course not found")
     course.is_published = True
     await db.commit()
+
+
+@router.post("/{slug}/thumbnail", status_code=200)
+async def upload_course_thumbnail(
+    slug: str,
+    file: UploadFile = File(...),
+    _: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Course).where(Course.slug == slug))
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    file_bytes = await file.read()
+    public_url = await upload_thumbnail(
+        file_bytes=file_bytes,
+        filename=file.filename or "thumbnail.jpg",
+        content_type=file.content_type or "image/jpeg",
+        course_slug=slug,
+    )
+    course.thumbnail_url = public_url
+    await db.commit()
+    return {"thumbnail_url": public_url}
 
 
 @router.post("/{course_id}/enroll", response_model=UserCourseRead, status_code=201)

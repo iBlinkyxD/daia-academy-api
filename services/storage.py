@@ -29,3 +29,30 @@ async def upload_post_file(file_bytes: bytes, filename: str, content_type: str, 
 
     public_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{settings.SUPABASE_POSTS_BUCKET}/{object_path}"
     return public_url
+
+
+async def upload_thumbnail(file_bytes: bytes, filename: str, content_type: str, course_slug: str) -> str:
+    """Upload a course thumbnail to the Supabase 'thumbnails' bucket and return its public URL."""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Storage not configured")
+
+    ext = filename.rsplit(".", 1)[-1] if "." in filename else "jpg"
+    object_path = f"{course_slug}/{uuid.uuid4()}.{ext}"
+    bucket = "thumbnails"
+    upload_url = f"{settings.SUPABASE_URL}/storage/v1/object/{bucket}/{object_path}"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            upload_url,
+            content=file_bytes,
+            headers={
+                "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": content_type,
+            },
+        )
+
+    if response.status_code not in (200, 201):
+        raise HTTPException(status_code=500, detail=f"Thumbnail upload failed: {response.text}")
+
+    public_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{bucket}/{object_path}"
+    return public_url
